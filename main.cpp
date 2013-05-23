@@ -1,5 +1,5 @@
-#include "SDL/SDL.h"
-#include "SDL/SDL_opengl.h"
+#include "SDL.h"
+#include "SDL_opengl.h"
 #include <iostream>
 
 int main (int argc, char* args[]) {
@@ -40,6 +40,45 @@ int main (int argc, char* args[]) {
 
 
     std::cout << "OpenGL is running\n";
+
+    bool isRunning = true;
+
+    //generic event var for handling events
+    SDL_Event event;
+    while(isRunning) {
+
+        //On event
+        while (SDL_PollEvent(&event)) {
+            switch(event.type) {
+                case SDL_QUIT:
+                    //window x button was pressed
+                    isRunning = false;
+                    break;
+                case SDL_KEYUP:
+                    //a key was released
+                    switch(event.key.keysym.sym) {
+                        case SDLK_ESCAPE:
+                            isRunning = false;
+                            break;
+                        case SDLK_r:
+                            glClearColor(1,0,0,1);
+                            break;
+                        default:
+                            //unused key, do nothing
+                            break;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        //Clear the screen with set color
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        //Pushes the write buffer to the screen
+        SDL_GL_SwapBuffers();
+    }
 
     //Wait on a key
     std::cin.get();
