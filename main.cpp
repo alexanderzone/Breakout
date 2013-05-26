@@ -2,12 +2,14 @@
 #include "SDL_opengl.h"
 #include <iostream>
 #include <vector>
+#include <sstream>
 
 struct Brick {
   double h = 20;
   double w = 50;
   double x = 0;
   double y = 0;
+  bool active = true;
 };
 
 struct Ball {
@@ -17,6 +19,128 @@ struct Ball {
   double vx = 4;
   double vy = 5;
 };
+
+class Timer
+{
+    private:
+    //The clock time when the timer started
+    int startTicks;
+
+    //The ticks stored when the timer was paused
+    int pausedTicks;
+
+    //The timer status
+    bool paused;
+    bool started;
+
+    public:
+    //Initializes variables
+    Timer();
+
+    //The various clock actions
+    void start();
+    void stop();
+    void pause();
+    void unpause();
+
+    //Gets the timer's time
+    int get_ticks();
+
+    //Checks the status of the timer
+    bool is_started();
+    bool is_paused();
+};
+
+Timer::Timer()
+{
+    //Initialize the variables
+    startTicks = 0;
+    pausedTicks = 0;
+    paused = false;
+    started = false;
+}
+
+void Timer::start()
+{
+    //Start the timer
+    started = true;
+
+    //Unpause the timer
+    paused = false;
+
+    //Get the current clock time
+    startTicks = SDL_GetTicks();
+}
+
+void Timer::stop()
+{
+    //Stop the timer
+    started = false;
+
+    //Unpause the timer
+    paused = false;
+}
+
+int Timer::get_ticks()
+{
+    //If the timer is running
+    if( started == true )
+    {
+        //If the timer is paused
+        if( paused == true )
+        {
+            //Return the number of ticks when the timer was paused
+            return pausedTicks;
+        }
+        else
+        {
+            //Return the current time minus the start time
+            return SDL_GetTicks() - startTicks;
+        }
+    }
+
+    //If the timer isn't running
+    return 0;
+}
+
+void Timer::pause()
+{
+    //If the timer is running and isn't already paused
+    if( ( started == true ) && ( paused == false ) )
+    {
+        //Pause the timer
+        paused = true;
+
+        //Calculate the paused ticks
+        pausedTicks = SDL_GetTicks() - startTicks;
+    }
+}
+
+void Timer::unpause()
+{
+    //If the timer is paused
+    if( paused == true )
+    {
+        //Unpause the timer
+        paused = false;
+
+        //Reset the starting ticks
+        startTicks = SDL_GetTicks() - pausedTicks;
+
+        //Reset the paused ticks
+        pausedTicks = 0;
+    }
+}
+
+bool Timer::is_started()
+{
+    return started;
+}
+
+bool Timer::is_paused()
+{
+    return paused;
+}
 
 bool checkBallCollision(Ball* a, Brick* b) {
     /*if (a->y + a->r >= b->y || a->y <= b->y + b->h) {
@@ -69,6 +193,9 @@ int main (int argc, char* args[]) {
     //Since 2D, we can disable depth checking
     glDisable(GL_DEPTH_TEST);
 
+    //The frames per second
+    const int FRAMES_PER_SECOND = 60;
+
     Brick player;
     Ball gameball;
     player.x = 250;
@@ -81,7 +208,7 @@ int main (int argc, char* args[]) {
     for (int i = 0, x = 25, y = 10; i < numBricks; i++, x += 55) {
         Brick temp;
 
-        if (x > 575) {
+        if (x >= 575) {
             x = 25;
             y += 25;
         }
@@ -90,22 +217,37 @@ int main (int argc, char* args[]) {
         bricks.push_back(temp);
     }
 
+    bool fpsCap = true;
+    //Keep track of the frame count
+    int frame = 0;
+    //Timer used to calculate the frames per second
+    Timer fps;
+    //Timer used to calculate the frames per second
+    Timer totalfps;
+    //Timer used to update the caption
+    Timer update;
+
     bool isRunning = true;
     //Generic event var for handling events
     SDL_Event event;
+    //Start the update timer
+    update.start();
+     //Start the frame timer
+        totalfps.start();
+
 
     while(isRunning) {
-        //Ghetto update frequency
-        SDL_Delay(20);
+        //Start the frame timer
+        fps.start();
 
     //Event handling
         Uint8* keystate = SDL_GetKeyState(NULL);
 
         //continuous-response keys
-        if(keystate[SDLK_LEFT]) {
+        if(keystate[SDLK_a]) {
             player.x -= 5;
         }
-        if(keystate[SDLK_RIGHT]) {
+        if(keystate[SDLK_d]) {
              player.x += 5;
         }
 
@@ -162,12 +304,18 @@ int main (int argc, char* args[]) {
         else if (gameball.x > player.x && gameball.y < player.y && gameball.y > player.y - player.h) {
             gameball.vx = -gameball.vx;
         }*/
-        if (checkBallCollision(&gameball, &player)) {
-            gameball.vy = -gameball.vy;
-        }
 
         gameball.x += gameball.vx;
         gameball.y += gameball.vy;
+        if (checkBallCollision(&gameball, &player)) {
+            gameball.vy = -gameball.vy;
+        }
+        for ( int i = 0; i < bricks.size(); i++ ) {
+            if (bricks[i].active && checkBallCollision(&gameball, &bricks[i])) {
+                gameball.vy = -gameball.vy;
+                bricks[i].active = false;
+            }
+        }
 
     //Render Logic
         //Clear the screen with set color
@@ -205,23 +353,41 @@ int main (int argc, char* args[]) {
         glBegin(GL_QUADS);
 
         for ( int i = 0; i < bricks.size(); i++ ) {
-            if (checkBallCollision(&gameball, &bricks[i])) {
-                gameball.vy = -gameball.vy;
-                glClearColor(0,1,0,1);
-                bricks.erase(bricks.begin()+i);
-                continue;
+            if (bricks[i].active) {
+                glVertex2f(bricks[i].x, bricks[i].y);
+                glVertex2f(bricks[i].x + bricks[i].w, bricks[i].y);
+                glVertex2f(bricks[i].x + bricks[i].w, bricks[i].y + bricks[i].h);
+                glVertex2f(bricks[i].x, bricks[i].y + bricks[i].h);
             }
-
-            glVertex2f(bricks[i].x, bricks[i].y);
-            glVertex2f(bricks[i].x + bricks[i].w, bricks[i].y);
-            glVertex2f(bricks[i].x + bricks[i].w, bricks[i].y + bricks[i].h);
-            glVertex2f(bricks[i].x, bricks[i].y + bricks[i].h);
         }
 
         glEnd(); //End drawing
 
         //Pops the matrix back to render on the screen
         glPopMatrix();
+        frame++;
+
+        //If a second has passed since the caption was last updated
+        if( update.get_ticks() > 1000 )
+        {
+            //The frame rate as a string
+            std::stringstream caption;
+
+            //Calculate the frames per second and create the string
+            caption << "Average Frames Per Second: " << frame / ( totalfps.get_ticks() / 1000.f );
+
+            //Reset the caption
+            SDL_WM_SetCaption(caption.str().c_str(), NULL );
+
+            //Restart the update timer
+            update.start();
+        }
+
+        if(fpsCap == true && (fps.get_ticks() < 1000 / FRAMES_PER_SECOND)) {
+            //Sleep the remaining frame time
+            SDL_Delay((1000 / FRAMES_PER_SECOND) - fps.get_ticks());
+        }
+
         //Pushes the write buffer to the screen
         SDL_GL_SwapBuffers();
     }
