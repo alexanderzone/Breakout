@@ -9,15 +9,15 @@ struct Brick {
   double w = 50;
   double x = 0;
   double y = 0;
-  bool active = true;
+  int hp = 1;
 };
 
 struct Ball {
   double r = 15;
   double x = 50;
-  double y = 50;
+  double y = 300;
   double vx = 4;
-  double vy = 5;
+  double vy = -5;
 };
 
 class Timer
@@ -214,6 +214,7 @@ int main (int argc, char* args[]) {
         }
         temp.x = x;
         temp.y = y;
+        temp.hp = 5 - (y-10)/25;
         bricks.push_back(temp);
     }
 
@@ -311,9 +312,9 @@ int main (int argc, char* args[]) {
             gameball.vy = -gameball.vy;
         }
         for ( int i = 0; i < bricks.size(); i++ ) {
-            if (bricks[i].active && checkBallCollision(&gameball, &bricks[i])) {
+            if (bricks[i].hp > 0 && checkBallCollision(&gameball, &bricks[i])) {
                 gameball.vy = -gameball.vy;
-                bricks[i].active = false;
+                bricks[i].hp -= 1;
             }
         }
 
@@ -353,7 +354,27 @@ int main (int argc, char* args[]) {
         glBegin(GL_QUADS);
 
         for ( int i = 0; i < bricks.size(); i++ ) {
-            if (bricks[i].active) {
+
+            switch(bricks[i].hp) {
+                case 5:
+                    glColor4f(0,0,1,1);
+                    break;
+                case 4:
+                    glColor4f(0.25,0.25,1,1);
+                    break;
+                case 3:
+                    glColor4f(0.5,0.5,1,1);
+                    break;
+                case 2:
+                    glColor4f(0.75,0.75,1,1);
+                    break;
+                case 1:
+                    glColor4f(0.75,1,1,1);
+                    break;
+                default:
+                    break;
+            }
+            if (bricks[i].hp > 0) {
                 glVertex2f(bricks[i].x, bricks[i].y);
                 glVertex2f(bricks[i].x + bricks[i].w, bricks[i].y);
                 glVertex2f(bricks[i].x + bricks[i].w, bricks[i].y + bricks[i].h);
