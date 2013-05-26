@@ -3,144 +3,9 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
+#include "classes.h"
+#include "constants.h"
 
-struct Brick {
-  double h = 20;
-  double w = 50;
-  double x = 0;
-  double y = 0;
-  int hp = 1;
-};
-
-struct Ball {
-  double r = 15;
-  double x = 50;
-  double y = 300;
-  double vx = 4;
-  double vy = -5;
-};
-
-class Timer
-{
-    private:
-    //The clock time when the timer started
-    int startTicks;
-
-    //The ticks stored when the timer was paused
-    int pausedTicks;
-
-    //The timer status
-    bool paused;
-    bool started;
-
-    public:
-    //Initializes variables
-    Timer();
-
-    //The various clock actions
-    void start();
-    void stop();
-    void pause();
-    void unpause();
-
-    //Gets the timer's time
-    int get_ticks();
-
-    //Checks the status of the timer
-    bool is_started();
-    bool is_paused();
-};
-
-Timer::Timer()
-{
-    //Initialize the variables
-    startTicks = 0;
-    pausedTicks = 0;
-    paused = false;
-    started = false;
-}
-
-void Timer::start()
-{
-    //Start the timer
-    started = true;
-
-    //Unpause the timer
-    paused = false;
-
-    //Get the current clock time
-    startTicks = SDL_GetTicks();
-}
-
-void Timer::stop()
-{
-    //Stop the timer
-    started = false;
-
-    //Unpause the timer
-    paused = false;
-}
-
-int Timer::get_ticks()
-{
-    //If the timer is running
-    if( started == true )
-    {
-        //If the timer is paused
-        if( paused == true )
-        {
-            //Return the number of ticks when the timer was paused
-            return pausedTicks;
-        }
-        else
-        {
-            //Return the current time minus the start time
-            return SDL_GetTicks() - startTicks;
-        }
-    }
-
-    //If the timer isn't running
-    return 0;
-}
-
-void Timer::pause()
-{
-    //If the timer is running and isn't already paused
-    if( ( started == true ) && ( paused == false ) )
-    {
-        //Pause the timer
-        paused = true;
-
-        //Calculate the paused ticks
-        pausedTicks = SDL_GetTicks() - startTicks;
-    }
-}
-
-void Timer::unpause()
-{
-    //If the timer is paused
-    if( paused == true )
-    {
-        //Unpause the timer
-        paused = false;
-
-        //Reset the starting ticks
-        startTicks = SDL_GetTicks() - pausedTicks;
-
-        //Reset the paused ticks
-        pausedTicks = 0;
-    }
-}
-
-bool Timer::is_started()
-{
-    return started;
-}
-
-bool Timer::is_paused()
-{
-    return paused;
-}
 
 bool checkBallCollision(Ball* a, Brick* b) {
     /*if (a->y + a->r >= b->y || a->y <= b->y + b->h) {
@@ -172,7 +37,7 @@ int main (int argc, char* args[]) {
     //Set title of application
     SDL_WM_SetCaption("Breakout", NULL);
     //Set dimensions, colors, renderer
-    SDL_SetVideoMode(600,400,32, SDL_OPENGL);
+    SDL_SetVideoMode(SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_BPP, SDL_OPENGL);
 
     //Set the screen's clear color
     //Double values 0-1
@@ -181,7 +46,7 @@ int main (int argc, char* args[]) {
 
     //Set the lower left corner of viewport in pixels,
     //as well as the dimensions of the window
-    glViewport(0,0,600,400);
+    glViewport(0,0,SCREEN_WIDTH,SCREEN_HEIGHT);
 
     //Set OpenGL to smooth shading so things like gradients look nice
     glShadeModel(GL_SMOOTH);
@@ -192,9 +57,6 @@ int main (int argc, char* args[]) {
 
     //Since 2D, we can disable depth checking
     glDisable(GL_DEPTH_TEST);
-
-    //The frames per second
-    const int FRAMES_PER_SECOND = 60;
 
     Brick player;
     Ball gameball;
@@ -245,10 +107,10 @@ int main (int argc, char* args[]) {
         Uint8* keystate = SDL_GetKeyState(NULL);
 
         //continuous-response keys
-        if(keystate[SDLK_a]) {
+        if(keystate[SDLK_a] || keystate[SDLK_LEFT]) {
             player.x -= 5;
         }
-        if(keystate[SDLK_d]) {
+        if(keystate[SDLK_d] || keystate[SDLK_RIGHT]) {
              player.x += 5;
         }
 
@@ -266,9 +128,11 @@ int main (int argc, char* args[]) {
                             isRunning = false;
                             break;
                         case SDLK_LEFT:
+                        case SDLK_a:
                             player.x -= 5;
                             break;
                         case SDLK_RIGHT:
+                        case SDLK_d:
                             player.x += 5;
                             break;
                         default:
@@ -286,15 +150,15 @@ int main (int argc, char* args[]) {
         if (player.x < 0) {
             player.x = 0;
         }
-        else if (player.x + player.w > 600) {
-            player.x = 600 - player.w;
+        else if (player.x + player.w > SCREEN_WIDTH) {
+            player.x = SCREEN_WIDTH - player.w;
         }
 
-        if (gameball.x + gameball.r > 600 || gameball.x < 0) {
+        if (gameball.x + gameball.r > SCREEN_WIDTH || gameball.x < 0) {
             gameball.vx = -gameball.vx;
         }
 
-        if (gameball.y < 0 || gameball.y + gameball.r > 400) {
+        if (gameball.y < 0 || gameball.y + gameball.r > SCREEN_HEIGHT) {
             gameball.vy = -gameball.vy;
         }
 
@@ -324,7 +188,7 @@ int main (int argc, char* args[]) {
         //Gives us the 'grid' we draw stuff on
         glPushMatrix();
         //Set the matrix size by multiplying an orthographic matrix
-        glOrtho(0,600,400,0,-1,1);
+        glOrtho(0,SCREEN_WIDTH,SCREEN_HEIGHT,0,-1,1);
 
         //Set the color of primitives
         glColor4f(.5,1,1,1);
@@ -356,22 +220,22 @@ int main (int argc, char* args[]) {
         for ( int i = 0; i < bricks.size(); i++ ) {
 
             switch(bricks[i].hp) {
-                case 5:
-                    glColor4f(0,0,1,1);
-                    break;
-                case 4:
-                    glColor4f(0.25,0.25,1,1);
-                    break;
-                case 3:
-                    glColor4f(0.5,0.5,1,1);
-                    break;
-                case 2:
-                    glColor4f(0.75,0.75,1,1);
+                case 0:
                     break;
                 case 1:
                     glColor4f(0.75,1,1,1);
                     break;
+                case 2:
+                    glColor4f(0.75,0.75,1,1);
+                    break;
+                case 3:
+                    glColor4f(0.5,0.5,1,1);
+                    break;
+                case 4:
+                    glColor4f(0.25,0.25,1,1);
+                    break;
                 default:
+                    glColor4f(0,0,1,1);
                     break;
             }
             if (bricks[i].hp > 0) {
@@ -395,10 +259,10 @@ int main (int argc, char* args[]) {
             std::stringstream caption;
 
             //Calculate the frames per second and create the string
-            caption << "Average Frames Per Second: " << frame / ( totalfps.get_ticks() / 1000.f );
+            caption << "Average Frames Per Second: " << frame / (totalfps.get_ticks() / 1000.f);
 
             //Reset the caption
-            SDL_WM_SetCaption(caption.str().c_str(), NULL );
+            SDL_WM_SetCaption(caption.str().c_str(), NULL);
 
             //Restart the update timer
             update.start();
